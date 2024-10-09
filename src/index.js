@@ -1,17 +1,49 @@
-import React from 'react';
+// src/index.js
+import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { UserProvider } from './userContext'; // Import UserProvider
+import Login from './login';
+import Home from './Home';
+import supabase from './config/supabaseClient';
+
+const Root = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // Added loading state
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null); // Set user state based on the session
+      setLoading(false); // Set loading to false after fetching
+    };
+
+    fetchSession(); // Fetch session on component mount
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user || null); // Update user state on auth state change
+    });
+
+    return () => {
+      subscription.unsubscribe(); // Clean up the subscription on unmount
+    };
+  }, []);
+
+  if (loading) return <div>Loading...</div>; // Show loading indicator
+
+  return user ? <Home /> : <Login />;
+};
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+
 root.render(
   <React.StrictMode>
-    <App />
+    <UserProvider>
+      <Root />
+    </UserProvider>
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
